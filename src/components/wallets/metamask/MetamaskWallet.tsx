@@ -1,6 +1,7 @@
 import { formatAddress, formatChainAsNum } from '../../../utils';
 import { TokenBalance } from './types';
 import { useMetaMask } from './useMetaMask';
+import './metamask.css';
 
 export const MetamaskWallet = () => {
   const {
@@ -39,7 +40,7 @@ export const MetamaskWallet = () => {
   };
 
   const connectButton = (
-    <button onClick={connect}>
+    <button onClick={connect} disabled={isConnecting}>
       {isConnecting ? 'loading...' : 'Connect Metamask'}
     </button>
   );
@@ -48,10 +49,10 @@ export const MetamaskWallet = () => {
   );
 
   return (
-    <div>
+    <div className="metamask-wallet">
       {isConnected ? disconnectButton : connectButton}
       {isConnected && walletInfo()}
-      {error ? errorMessage : null}
+      <div className="error">{error ? errorMessage : null}</div>
     </div>
   );
 };

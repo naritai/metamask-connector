@@ -99,13 +99,14 @@ export const MetamaskProvider = ({ children }: MetamaskProviderProps) => {
         try {
           // user wasn't disconnected from prev page load
           if (isConnected) {
-            await provider.ensureBinanceSmartChainUsed();
+            // await provider.ensureBinanceSmartChainUsed();
             const walletData = await provider.getWalletData();
             setWallet(walletData);
           }
           provider.subscribe('accountsChanged', updateWallet);
           provider.subscribe('chainChanged', updateWalletAndAccounts);
-        } catch (err) {
+        } catch {
+          setErrorMessage('User rejected connection.');
           disconnect();
         }
       }
@@ -126,15 +127,16 @@ export const MetamaskProvider = ({ children }: MetamaskProviderProps) => {
     clearError();
 
     try {
-      await provider.ensureBinanceSmartChainUsed();
+      // await provider.ensureBinanceSmartChainUsed();
       await provider.connect();
       const accounts = await provider.getAccounts();
 
       updateWallet(accounts);
       setIsConnected(true);
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setErrorMessage(err.message);
+    } catch {
+      setErrorMessage('User rejected connection.');
     }
 
     setIsConnecting(false);

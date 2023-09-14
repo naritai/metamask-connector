@@ -1,5 +1,9 @@
-.metamask-info {
+.metamask-wallet {
   display: flex;
   flex-direction: column;
-  border: 2px solid black;
+}
+
+.error {
+  margin-top: 20px;
+  color: red;
 }

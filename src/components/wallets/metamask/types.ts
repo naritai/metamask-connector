@@ -5,7 +5,7 @@ export enum AccountType {
 
 export interface TokenBalance {
   token: string;
-  balance: number;
+  balance: string;
   decimals?: number;
 }
 

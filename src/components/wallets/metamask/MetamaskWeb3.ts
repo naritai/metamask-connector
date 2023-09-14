@@ -66,7 +66,7 @@ export class MetamaskWeb3 {
     let wallet = defaultWalletState;
 
     try {
-      await this.ensureBinanceSmartChainUsed();
+      // await this.ensureBinanceSmartChainUsed();
       const accs = accounts || (await this.getAccounts());
 
       if (!accs.length) {
@@ -128,7 +128,7 @@ export class MetamaskWeb3 {
         .call();
 
       result.token = token.token;
-      result.balance = balance as unknown as number;
+      result.balance = formatBalance(balance as unknown as string);
     } catch (err) {
       // probably there's something wrong with network
       console.error(err);
