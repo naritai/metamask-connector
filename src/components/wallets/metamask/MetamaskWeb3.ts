@@ -1,7 +1,9 @@
 import { MetaMaskInpageProvider } from '@metamask/providers';
 import Web3 from 'web3';
 import { tokenABI } from '../../../lib/tokenABI';
-import { TokenBalance, WalletState } from './types';
+import { ChainOptions, TokenBalance, WalletState } from './types';
+import { formatBalance } from '../../../utils';
+import { BSC_ID, CHAINS_CONFIGS, METAMASK_ERRORS } from './constants';
 
 interface TokenConfig {
   contractAddress: string;
@@ -16,13 +18,13 @@ const defaultWalletState: WalletState = {
   address: '',
   balance: '',
   tokens: [],
-  chainId: null,
+  chainId: '',
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Callback = (args: any) => any;
 
-export class MetamaskWeb3Wrapper {
+export class MetamaskWeb3 {
   private raw_ethereum: MetaMaskInpageProvider;
   private provider: Web3;
   private accounts: string[] = [];
@@ -35,13 +37,20 @@ export class MetamaskWeb3Wrapper {
   }
 
   async connect(): Promise<boolean> {
-    let success = true;
     try {
-      await this.provider.eth.requestAccounts();
+      await this.raw_ethereum.request({
+        method: 'wallet_requestPermissions',
+        params: [
+          {
+            eth_accounts: {},
+          },
+        ],
+      });
     } catch {
-      success = false;
+      throw new Error('User rejected wallet connection');
     }
-    return success;
+
+    return true;
   }
 
   async getAccounts(): Promise<string[]> {
@@ -57,6 +66,7 @@ export class MetamaskWeb3Wrapper {
     let wallet = defaultWalletState;
 
     try {
+      await this.ensureBinanceSmartChainUsed();
       const accs = accounts || (await this.getAccounts());
 
       if (!accs.length) {
@@ -66,7 +76,7 @@ export class MetamaskWeb3Wrapper {
       const walletAddress = accs[0];
       const walletBalace = await this.getWalletBalance(walletAddress);
       const tokenBalances = await this.getTokenBalances(walletAddress);
-      const chainId = await this.getChainId();
+      const chainId = (await this.getChainId()) as string;
 
       wallet = {
         address: walletAddress,
@@ -83,7 +93,7 @@ export class MetamaskWeb3Wrapper {
 
   async getWalletBalance(walletAdress: string): Promise<string> {
     const nativeBalance = await this.provider.eth.getBalance(walletAdress);
-    return this.provider.utils.fromWei(nativeBalance, 'ether');
+    return formatBalance(this.provider.utils.fromWei(nativeBalance, 'ether'));
   }
 
   async getTokenBalances(walletAddress: string): Promise<TokenBalance[]> {
@@ -127,11 +137,13 @@ export class MetamaskWeb3Wrapper {
     return result;
   }
 
-  async getChainId(): Promise<bigint | null> {
+  async getChainId(): Promise<unknown> {
     let chainId = null;
 
     try {
-      chainId = await this.provider.eth.getChainId();
+      chainId = await this.raw_ethereum.request({
+        method: 'eth_chainId',
+      });
     } catch (err) {
       console.error(err);
     }
@@ -151,44 +163,60 @@ export class MetamaskWeb3Wrapper {
     this.raw_ethereum.removeAllListeners();
   }
 
-  // async switchToChain(chainId: string): Promise<boolean> {
-  //   let success = false;
+  async ensureBinanceSmartChainUsed(): Promise<boolean> {
+    try {
+      const chainId = await this.getChainId();
+      if (chainId !== BSC_ID) {
+        await this.switchToChain(BSC_ID);
+      }
+    } catch (err) {
+      throw new Error('User rejected switching chain');
+    }
 
-  //   try {
-  //     await this.provider.request({
-  //       method: 'wallet_switchEthereumChain',
-  //       params: [{ chainId }],
-  //     });
+    return true;
+  }
 
-  //     success = true;
-  //   } catch (switchError) {
-  //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  //     // @ts-ignore
-  //     if (switchError!.code === METAMASK_ERRORS.CHAIN_NOT_ADDED) {
-  //       const chainOptions: ChainOptions =
-  //         CHAINS_CONFIGS[chainId as keyof typeof CHAINS_CONFIGS];
-  //       success = await this.addNewChain(chainOptions);
-  //     }
-  //   }
+  async switchToChain(chainId: string): Promise<boolean> {
+    let success = false;
 
-  //   return success;
-  // }
+    try {
+      await this.raw_ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId }],
+      });
 
-  // async addNewChain(options: ChainOptions): Promise<boolean> {
-  //   let success = false;
+      success = true;
+    } catch (switchError) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      if (switchError!.code === METAMASK_ERRORS.CHAIN_NOT_ADDED) {
+        const chainOptions: ChainOptions =
+          CHAINS_CONFIGS[chainId as keyof typeof CHAINS_CONFIGS];
+        success = await this.addNewChain(chainOptions);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        throw new Error('User rejected switching chain');
+      }
+    }
 
-  //   try {
-  //     await this.provider.request({
-  //       method: 'wallet_addEthereumChain',
-  //       params: [options],
-  //     });
+    return success;
+  }
 
-  //     success = true;
-  //   } catch (error) {
-  //     // save message and push it as a snakkbar
-  //     console.log('Cannot add new chain to the metamask wallet....');
-  //   }
+  async addNewChain(options: ChainOptions): Promise<boolean> {
+    let success = false;
 
-  //   return success;
-  // }
+    try {
+      await this.raw_ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [options],
+      });
+
+      success = true;
+    } catch (error) {
+      throw new Error('user rejected to adding new chain to the metamask....');
+    }
+
+    return success;
+  }
 }

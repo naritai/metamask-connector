@@ -13,7 +13,7 @@ export interface WalletState {
   address: string;
   balance: string;
   tokens: TokenBalance[];
-  chainId: bigint | null;
+  chainId: string;
 }
 
 // CHAIN TYPES

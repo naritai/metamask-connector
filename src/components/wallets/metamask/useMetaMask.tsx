@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 import { WalletState } from './types';
-import { MetamaskWeb3Wrapper } from './MetamaskWeb3Wrapper';
+import { MetamaskWeb3 } from './MetamaskWeb3';
 import detectEthereumProvider from '@metamask/detect-provider';
 import { useLocalStorage } from 'usehooks-ts';
 import { METAMASK_KEY } from './constants';
@@ -32,7 +32,7 @@ const defaultWalletState: WalletState = {
   address: '',
   balance: '',
   tokens: [],
-  chainId: null,
+  chainId: '',
 };
 
 const metamaskConfig = {
@@ -50,7 +50,7 @@ interface MetamaskProviderProps {
 
 export const MetamaskProvider = ({ children }: MetamaskProviderProps) => {
   const [detected, setDetected] = useState(false);
-  const [provider, setProvider] = useState<MetamaskWeb3Wrapper>();
+  const [provider, setProvider] = useState<MetamaskWeb3>();
   const [wallet, setWallet] = useState(defaultWalletState);
 
   const [isConnecting, setIsConnecting] = useState(false);
@@ -83,7 +83,7 @@ export const MetamaskProvider = ({ children }: MetamaskProviderProps) => {
     const detectProvider = async () => {
       const detected = await detectEthereumProvider({ silent: true });
       if (detected) {
-        setProvider(new MetamaskWeb3Wrapper(window.ethereum, metamaskConfig));
+        setProvider(new MetamaskWeb3(window.ethereum, metamaskConfig));
       }
       setDetected(Boolean(detected));
     };
@@ -96,13 +96,18 @@ export const MetamaskProvider = ({ children }: MetamaskProviderProps) => {
   useEffect(() => {
     const preload = async () => {
       if (detected && provider) {
-        // user wasn't disconnected from prev page load
-        if (isConnected) {
-          const walletData = await provider.getWalletData();
-          setWallet(walletData);
+        try {
+          // user wasn't disconnected from prev page load
+          if (isConnected) {
+            await provider.ensureBinanceSmartChainUsed();
+            const walletData = await provider.getWalletData();
+            setWallet(walletData);
+          }
+          provider.subscribe('accountsChanged', updateWallet);
+          provider.subscribe('chainChanged', updateWalletAndAccounts);
+        } catch (err) {
+          disconnect();
         }
-        provider.subscribe('accountsChanged', updateWallet);
-        provider.subscribe('chainChanged', updateWalletAndAccounts);
       }
     };
 
@@ -118,11 +123,13 @@ export const MetamaskProvider = ({ children }: MetamaskProviderProps) => {
     }
 
     setIsConnecting(true);
+    clearError();
 
     try {
+      await provider.ensureBinanceSmartChainUsed();
       await provider.connect();
       const accounts = await provider.getAccounts();
-      clearError();
+
       updateWallet(accounts);
       setIsConnected(true);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

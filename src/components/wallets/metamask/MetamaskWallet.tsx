@@ -1,3 +1,4 @@
+import { formatAddress, formatChainAsNum } from '../../../utils';
 import { TokenBalance } from './types';
 import { useMetaMask } from './useMetaMask';
 
@@ -15,9 +16,9 @@ export const MetamaskWallet = () => {
   const { chainId, tokens, address, balance } = wallet;
 
   const mapBalances = (tokens: TokenBalance[]) => {
-    return tokens.map(({ token, balance }) => {
+    return tokens.map(({ token, balance }, index) => {
       return (
-        <ul key={token}>
+        <ul key={token || index}>
           <li>Token: {token}</li>
           <li>Balance: {balance}</li>
         </ul>
@@ -29,15 +30,19 @@ export const MetamaskWallet = () => {
     return (
       <div>
         <h2>Wallet Info:</h2>
-        <div>Address: {address}</div>
+        <div>Chain ID: {formatChainAsNum(chainId)}</div>
+        <div>Address: {formatAddress(address)}</div>
         <div>Balance: {balance}</div>
-        <div>Chain ID: {String(chainId)}</div>
-        <ul>{mapBalances(tokens)}</ul>
+        {mapBalances(tokens)}
       </div>
     );
   };
 
-  const connectButton = <button onClick={connect}>Connect Metamask</button>;
+  const connectButton = (
+    <button onClick={connect}>
+      {isConnecting ? 'loading...' : 'Connect Metamask'}
+    </button>
+  );
   const disconnectButton = (
     <button onClick={disconnect}>Disconnect Metamask</button>
   );
@@ -45,8 +50,8 @@ export const MetamaskWallet = () => {
   return (
     <div>
       {isConnected ? disconnectButton : connectButton}
+      {isConnected && walletInfo()}
       {error ? errorMessage : null}
-      {isConnecting ? 'loading...' : walletInfo()}
     </div>
   );
 };

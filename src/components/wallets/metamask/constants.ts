@@ -1,5 +1,7 @@
+export const BSC_ID = '0x38';
+
 const binanceSmartChain = {
-  chainId: '0x38',
+  chainId: BSC_ID,
   chainName: 'Smart Chain',
   rpcUrls: ['https://bsc-dataseed.binance.org/'],
   blockExplorerUrls: ['https://bscscan.com'],
